@@ -2,6 +2,7 @@
 Abstract SQL Interface Implementations
 """
 import enum
+import uuid
 from abc import abstractmethod
 from collections.abc import Sequence
 from typing import Union, Mapping, Protocol, Any, Optional, List
@@ -56,18 +57,39 @@ class Record(Sequence):
         raise NotImplementedError
 
 class ITransaction(Protocol):
-
+    is_root:   bool
+    savepoint: Optional[str]
+ 
     @abstractmethod
+    def _execute(self, query: str):
+        raise NotImplementedError
+
     def start(self, is_root: bool, **options):
-        raise NotImplementedError
+        """internal handler for supporting transaction-start"""
+        self.is_root = is_root
+        if self.is_root:
+            self._execute('BEGIN')
+            return
+        self.savepoint = f'SP_{str(uuid.uuid4()).replace("-", "_")}'
+        self._execute(f'SAVEPOINT {self.savepoint}')
 
-    @abstractmethod
     def commit(self):
-        raise NotImplementedError
-
-    @abstractmethod
+        """
+        commit changes made in transaction
+        """
+        if self.is_root:
+            self._execute('COMMIT')
+            return
+        self._execute(f'RELEASE SAVEPOINT {self.savepoint}')
+ 
     def rollback(self):
-        raise NotImplementedError
+        """
+        rollback any changes made during the transaction
+        """
+        if self.is_root:
+            self._execute('ROLLBACK')
+            return
+        self._execute(f'ROLLBACK TO SAVEPOINT {self.savepoint}')
 
 class IConnection(Protocol):
 

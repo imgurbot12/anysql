@@ -1,7 +1,6 @@
 """
 Threaded SQLite Implementation
 """
-import uuid
 import queue
 import sqlite3
 import functools
@@ -190,35 +189,10 @@ class SqliteTransaction(ITransaction):
         self.db        = db
         self.is_root   = False
         self.savepoint = None
-
-    def start(self, is_root: bool, **_):
-        """
-        start transaction w/ the given settings
-        """
-        self.is_root = is_root
-        if self.is_root:
-            self.db.execute('BEGIN', close=True)
-            return
-        self.savepoint = f'SP_{str(uuid.uuid4()).replace("-", "_")}'
-        self.db.execute(f'SAVEPOINT {self.savepoint}', close=True)
-
-    def commit(self):
-        """
-        commit changes made in transaction
-        """
-        if self.is_root:
-            self.db.execute('COMMIT', close=True)
-            return
-        self.db.execute(f'RELEASE SAVEPOINT {self.savepoint}', close=True)
  
-    def rollback(self):
-        """
-        rollback any changes made during the transaction
-        """
-        if self.is_root:
-            self.db.execute('ROLLBACK', close=True)
-            return
-        self.db.execute(f'ROLLBACK TO SAVEPOINT {self.savepoint}', close=True)
+    def _execute(self, query: str):
+        """handle query execution"""
+        self.db.execute(query, close=True)
 
 class SqliteConnection(IConnection):
     """Internal Sqlite Connection Interface"""
