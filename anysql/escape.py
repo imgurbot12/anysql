@@ -2,6 +2,7 @@
 AnySQL Escape/Unescape Implementation
 """
 import math
+import datetime
 from typing import *
 
 from .interface import *
@@ -97,7 +98,7 @@ def prepare(query: Union[str, Prepared], cache: bool = False) -> Prepared:
             wordend = len(word) > 0
         elif c in ("'", '"', ''):
             quotes = not quotes if escapes % 2 == 0 else quotes
-        elif not quotes and c in '%;,.':
+        elif not quotes and c in ';,.=':
             wordend = len(word) > 0
         elif c not in '()[]{}':
             word.append(c)
@@ -172,19 +173,27 @@ def escape_str(arg: str, _: OptEncoders = None):
 def escape_bytes(arg: bytes, _ = None):
     return escape_str(arg.decode('ascii', 'surrogateescape'))
 
+def escape_date(arg: datetime.date, _ = None):
+    return repr(arg.isoformat())
+
+def escape_datetime(arg: datetime.datetime, _ = None):
+    return repr(arg.isoformat(' '))
+
 #** Init **#
 
 #: mapping for escaping python types for query string
 ENCODER_MAP: Encoders = {
-    int:        escape_int,
-    bool:       escape_bool,
-    float:      escape_float,
-    str:        escape_str,
-    bytes:      escape_bytes,
-    tuple:      escape_sequence,
-    list:       escape_sequence,
-    set:        escape_sequence,
-    frozenset:  escape_sequence,
-    dict:       escape_dict,
-    type(None): escape_none,
+    int:               escape_int,
+    bool:              escape_bool,
+    float:             escape_float,
+    str:               escape_str,
+    bytes:             escape_bytes,
+    tuple:             escape_sequence,
+    list:              escape_sequence,
+    set:               escape_sequence,
+    frozenset:         escape_sequence,
+    dict:              escape_dict,
+    type(None):        escape_none,
+    datetime.date:     escape_date,
+    datetime.datetime: escape_datetime,
 }
