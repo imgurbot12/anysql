@@ -5,7 +5,7 @@ with open('README.md', 'r') as f:
 
 setup(
     name='anysql',
-    version='0.0.1',
+    version='0.0.2',
     license='MIT',
     packages=find_packages(),
     url='https://github.com/imgurbot12/anysql',
