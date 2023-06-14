@@ -1,0 +1,5 @@
+anysql
+sqlmap
+fastapi
+uvicorn
+git+https://github.com/imgurbot12/fastapi-extras.git

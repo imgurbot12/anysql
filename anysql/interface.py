@@ -16,16 +16,16 @@ __all__ = [
     'Stmt',
     'ProgrammingError',
     'ArgMode',
-    'Prepared', 
-    'Query', 
-    'Record', 
-    'ITransaction', 
-    'IConnection', 
+    'Prepared',
+    'Query',
+    'Record',
+    'ITransaction',
+    'IConnection',
     'IDatabase'
 ]
 
 #: typehint for valid arguments type
-Args = Union[Mapping[str, Any], Sequence[Any], None]
+Args = Union[Mapping[str, Any], Sequence, None]
 
 #: typehint for all valid mogrify query types
 Stmt = Union[str, 'Prepared', 'Query']
