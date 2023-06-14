@@ -33,13 +33,13 @@ def home(req: Request):
 @app.get('/login')
 def login(req: Request, username: str, password: str):
     """check login w/ username and password"""
-    sql   = 'SELECT id FROM Users WHERE username=? AND password=?'
-    query = mogrify(sql, (username, password))
-    row = db.fetch_one(query)
+    sql = 'SELECT id FROM Users WHERE username=? AND password=?'
+    row = db.fetch_one(sql, (username, password))
     if row is not None:
         req.session['user'] = username
         return RedirectResponse('/', status_code=303)
-    raise HTTPException(401, f'Login Failure. Invalid Usernamee and Password: {username!r}')
+    raise HTTPException(401, 
+        f'Login Failure. Invalid Usernamee and Password: {username!r}')
 
 @app.get('/logout')
 def logout(req: Request):
