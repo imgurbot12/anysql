@@ -189,7 +189,7 @@ class SqliteTransaction(ITransaction):
         self.db        = db
         self.is_root   = False
         self.savepoint = None
- 
+
     def _execute(self, query: str):
         """handle query execution"""
         self.db.execute(query, close=True)

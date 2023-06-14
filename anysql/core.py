@@ -23,8 +23,9 @@ __all__ = [
 
 #: supported backends registry
 BACKENDS = {
-    'mysql':  ('anysql.backends.pymysql', 'MysqlDatabase'),
-    'sqlite': ('anysql.backends.sqlite', 'SqliteDatabase'),
+    'mysql':    ('anysql.backends.pymysql', 'MysqlDatabase'),
+    'sqlite':   ('anysql.backends.sqlite', 'SqliteDatabase'),
+    'postgres': ('anysql.backends.postgres', 'PostgresDatabase'),
 }
 
 #** Functions **#

@@ -167,8 +167,9 @@ def escape_float(arg: float, _ = None):
     f += '' if 'e' in f else 'e0'
     return f
 
+#NOTE: hacky way to force repr to always use single quotes
 def escape_str(arg: str, _: OptEncoders = None):
-    return repr(arg)
+    return "'" + repr('"' + arg)[2:].replace("\\'", "''")
 
 def escape_bytes(arg: bytes, _ = None):
     return escape_str(arg.decode('ascii', 'surrogateescape'))

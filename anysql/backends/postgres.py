@@ -1,11 +1,11 @@
 """
-Threaded PyMySQL Implementation
+Threaded Psycopg2
 """
 import getpass
-from typing import Optional, List
+from typing import Optional, List, Any, TypeAlias
 
 import pypool
-import pymysql
+import psycopg2
 
 from . import Timeout, setdefault
 from ..uri import DatabaseURI
@@ -13,8 +13,8 @@ from ..interface import *
 
 #** Variables **#
 
-#: alias for pymysql connection
-RawConn = pymysql.Connection
+#: postgres connection type
+RawConn: TypeAlias = Any #type: psycopg2.connection
 
 #: common connection exception
 NotAquired = ConnectionError('Mysql connection not acquired')
@@ -22,7 +22,7 @@ NotAquired = ConnectionError('Mysql connection not acquired')
 #** Classes **#
 
 class ConnPool:
-    """PyMYSQL Connection Pool Implementation"""
+    """Psycopg2 Connection Pool Implementation"""
     pool: pypool.Pool[RawConn]
 
     def __init__(self, uri: DatabaseURI, **kwargs):
@@ -39,19 +39,20 @@ class ConnPool:
         if isinstance(ssl, str):
             ssl = ssl.lower()
             self.uri.options['ssl'] = {'true': True, 'false': False}[ssl]
-        return RawConn(
+        conn = psycopg2.connect(
             host=self.uri.hostname,
-            port=self.uri.port or 3306,
+            port=self.uri.port or 5432,
             user=self.uri.username or getpass.getuser(),
-            password=self.uri.password or '',
-            db=self.uri.database,
-            autocommit=True,
+            password=self.uri.password,
+            database=self.uri.database,
             **self.uri.options,
         )
+        conn.autocommit = True
+        return conn
 
     def cleanup(self, conn: RawConn):
         """connection cleanup function"""
-        if conn.open:
+        if not conn.closed:
             conn.close()
 
     def get(self, block: bool = True, timeout: Timeout = None) -> RawConn:
@@ -66,10 +67,10 @@ class ConnPool:
         """drain and close all open connections"""
         self.pool.drain()
 
-class MysqlTransaction(ITransaction):
-    """Internal Mysql Transaction Interface"""
+class PostgresTransaction(ITransaction):
+    """Internal Psycopg2 Transaction Interface"""
  
-    def __init__(self, conn: 'MysqlConnection'):
+    def __init__(self, conn: 'PostgresConnection'):
         self.conn    = conn
         self.is_root = False
         self.savepoint: Optional[str] = None
@@ -78,14 +79,11 @@ class MysqlTransaction(ITransaction):
         """internal executor function"""
         if self.conn.conn is None:
             raise NotAquired
-        if self.is_root:
-            self.conn.conn.query(query)
-            return
         with self.conn.conn.cursor() as cursor:
             cursor.execute(query)
 
-class MysqlConnection(IConnection):
-    """Internal Mysql Connection Interface"""
+class PostgresConnection(IConnection):
+    """Internal Psycopg2 Connection Interface"""
 
     def __init__(self, pool: ConnPool):
         self.pool: ConnPool          = pool
@@ -141,7 +139,7 @@ class MysqlConnection(IConnection):
         """
         spawn transaction handler for mysql
         """
-        return MysqlTransaction(self)
+        return PostgresTransaction(self)
 
     @property
     def raw_connection(self):
@@ -150,8 +148,8 @@ class MysqlConnection(IConnection):
         """
         return self.conn
 
-class MysqlDatabase(IDatabase):
-    """Internal Mysql Database Interface"""
+class PostgresDatabase(IDatabase):
+    """Internal Psycopg2 Database Interface"""
 
     def __init__(self, uri: DatabaseURI, **kwargs):
         self.uri    = uri
@@ -163,7 +161,7 @@ class MysqlDatabase(IDatabase):
         connect to mysql database
         """
         if self.pool is not None:
-            raise ConnectionError('Mysql already connected')
+            raise ConnectionError('Postgres already connected')
         self.pool = ConnPool(self.uri, **self.kwargs)
 
     def disconnect(self):
@@ -171,7 +169,7 @@ class MysqlDatabase(IDatabase):
         disconnect from mysql database
         """
         if self.pool is None:
-            raise ConnectionError('Mysql not connected')
+            raise ConnectionError('Postgres not connected')
         self.pool.drain()
         self.poool = None
 
@@ -180,5 +178,5 @@ class MysqlDatabase(IDatabase):
         return connection for mysql database
         """
         if self.pool is None:
-            raise ConnectionError('Mysql not connected')
-        return MysqlConnection(self.pool)
+            raise ConnectionError('Postgres not connected')
+        return PostgresConnection(self.pool)
