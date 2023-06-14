@@ -2,6 +2,7 @@
 Threaded Psycopg2
 """
 import getpass
+import logging
 from typing import Optional, List, Any, TypeAlias
 
 import pypool
@@ -12,6 +13,9 @@ from ..uri import DatabaseURI
 from ..interface import *
 
 #** Variables **#
+
+#: backend logging instance
+logger = logging.getLogger('anysql.postgres')
 
 #: postgres connection type
 RawConn: TypeAlias = Any #type: psycopg2.connection
@@ -32,9 +36,11 @@ class ConnPool:
         setdefault(kwargs, uri, 'timeout', float)
         self.uri  = uri
         self.pool = pypool.Pool(self.factory, cleanup=self.cleanup, **kwargs)
+        logger.debug('conn-pool max={0.max_size} min={0.min_size} expr={0.expiration}'.format(self.pool))
 
     def factory(self) -> RawConn:
         """connection factory function"""
+        logger.debug(f'conn-pool size={self.pool.pool_size} max={self.pool.min_size}')
         ssl = self.uri.options.get('ssl')
         if isinstance(ssl, str):
             ssl = ssl.lower()
@@ -65,6 +71,7 @@ class ConnPool:
 
     def drain(self):
         """drain and close all open connections"""
+        logger.debug(f'draining {self.pool.pool_size} connections')
         self.pool.drain()
 
 class PostgresTransaction(ITransaction):
@@ -160,6 +167,7 @@ class PostgresDatabase(IDatabase):
         """
         connect to mysql database
         """
+        logger.debug(f'connecting to {self.uri.obscure_password}')
         if self.pool is not None:
             raise ConnectionError('Postgres already connected')
         self.pool = ConnPool(self.uri, **self.kwargs)
@@ -168,10 +176,11 @@ class PostgresDatabase(IDatabase):
         """
         disconnect from mysql database
         """
+        logger.debug(f'disconecting from {self.uri.obscure_password}')
         if self.pool is None:
             raise ConnectionError('Postgres not connected')
         self.pool.drain()
-        self.poool = None
+        self.pool = None
 
     def connection(self) -> IConnection:
         """

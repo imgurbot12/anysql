@@ -1,6 +1,7 @@
 """
 AnySQL Core Implementation
 """
+import logging
 import functools
 import threading
 import importlib
@@ -20,6 +21,9 @@ __all__ = [
     'Connection', 
     'Transaction'
 ]
+
+#: core logging instance
+logger = logging.getLogger('anysql')
 
 #: supported backends registry
 BACKENDS = {
@@ -83,15 +87,20 @@ class Database:
         connect to database if not already connected
         """
         if self.connected:
+            logger.debug(f'{self.uri.obscure_password} already connected.')
             return
+        logger.debug(f'connecting to {self.uri.obscure_password}')
         self.backend.connect()
+        self.connected = True
 
     def disconnect(self):
         """
         disconnect from database if not already disconected
         """
         if not self.connected:
+            logger.debug(f'{self.uri.obscure_password} already disconnected.')
             return
+        logger.debug(f'disconnecting from {self.uri.obscure_password}')
         self.backend.disconnect()
 
     def connection(self) -> 'Connection':

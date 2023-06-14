@@ -2,6 +2,7 @@
 Threaded SQLite Implementation
 """
 import queue
+import logging
 import sqlite3
 import functools
 import threading
@@ -13,6 +14,9 @@ from ..uri import DatabaseURI
 from ..interface import *
 
 #** Variables **#
+
+#: backend logging instance
+logger = logging.getLogger('anysql.sqlite')
 
 #: funciton in charge of generating a connection
 Connector = Callable[[], sqlite3.Connection]
@@ -262,6 +266,7 @@ class SqliteDatabase(IDatabase):
     def __init__(self, uri: DatabaseURI, **kwargs: Any):
         kwargs.setdefault('isolation_level', None)
         url       = str(uri).split('//', 1)[-1]
+        self.uri  = uri
         self.db   = Database(lambda: sqlite3.connect(url, **kwargs)) 
         self.conn = SqliteConnection(self.db)
 
@@ -269,12 +274,14 @@ class SqliteDatabase(IDatabase):
         """
         connect to sqlite database
         """
+        logger.debug(f'connecting to {self.uri.obscure_password}')
         return self.db.connect()
 
     def disconnect(self):
         """
         disconnect from sqlite database
         """
+        logger.debug(f'disconecting from {self.uri.obscure_password}')
         return self.db.disconnect()
 
     def connection(self) -> IConnection:
