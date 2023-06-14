@@ -5,7 +5,7 @@ with open('README.md', 'r') as f:
 
 setup(
     name='anysql',
-    version='0.0.2',
+    version='0.0.3',
     license='MIT',
     packages=find_packages(),
     url='https://github.com/imgurbot12/anysql',
@@ -17,6 +17,7 @@ setup(
     long_description_content_type="text/markdown",
     package_data={"anysql": ["py.typed"]},
     install_requires=[
+        'pypool3',
         'dataclasses',
         'contextvars',
         'typing_extensions',
