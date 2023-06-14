@@ -21,6 +21,10 @@ setup(
         'contextvars',
         'typing_extensions',
     ],
+    extras_require={
+        "mysql":      ["pymysql"],
+        "postgresql": ["psycopg2-binary"],
+    },
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
