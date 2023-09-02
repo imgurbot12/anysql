@@ -51,6 +51,10 @@ class Query(Prepared):
     pass
 
 class Record(Sequence):
+ 
+    @abstractmethod
+    def __iter__(self):
+        raise NotImplementedError
 
     @abstractmethod
     def __getitem__(self, key: str) -> Any:
