@@ -3,7 +3,7 @@ Threaded PyMySQL Implementation
 """
 import getpass
 import logging
-from typing import Optional, List
+from typing import Generator, Optional, List
 
 import pypool
 import pymysql
@@ -75,12 +75,12 @@ class ConnPool:
 
 class MysqlTransaction(ITransaction):
     """Internal Mysql Transaction Interface"""
- 
+
     def __init__(self, conn: 'MysqlConnection'):
         self.conn    = conn
         self.is_root = False
         self.savepoint: Optional[str] = None
- 
+
     def _execute(self, query: str):
         """internal executor function"""
         if self.conn.conn is None:
@@ -134,6 +134,17 @@ class MysqlConnection(IConnection):
         with self.conn.cursor() as cursor:
             cursor.execute(query)
             return cursor.fetchall()
+
+    def fetch_yield(self, query: Query) -> Generator[Record, None, None]:
+        """
+        fetch a generator of records using the specified query
+        """
+        if self.conn is None:
+            raise NotAquired
+        with self.conn.cursor() as cursor:
+            cursor.execute(query)
+            for row in cursor:
+                yield row
 
     def execute(self, query: Query):
         """

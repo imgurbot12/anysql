@@ -13,7 +13,7 @@ Timeout = Optional[float]
 
 #** Functions **#
 
-def setdefault(kwargs: dict, 
+def setdefault(kwargs: dict,
     uri: DatabaseURI, key: str, convert: type, default: Any = None):
     """set-default for kwargs from uri options"""
     default = uri.options.get(key) or default

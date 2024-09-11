@@ -3,7 +3,8 @@ Threaded Psycopg2
 """
 import getpass
 import logging
-from typing import Optional, List, Any, TypeAlias
+from typing import Generator, Optional, List, Any
+from typing_extensions import TypeAlias
 
 import pypool
 import psycopg2
@@ -76,12 +77,12 @@ class ConnPool:
 
 class PostgresTransaction(ITransaction):
     """Internal Psycopg2 Transaction Interface"""
- 
+
     def __init__(self, conn: 'PostgresConnection'):
         self.conn    = conn
         self.is_root = False
         self.savepoint: Optional[str] = None
- 
+
     def _execute(self, query: str):
         """internal executor function"""
         if self.conn.conn is None:
@@ -132,6 +133,17 @@ class PostgresConnection(IConnection):
         with self.conn.cursor() as cursor:
             cursor.execute(query)
             return cursor.fetchall()
+
+    def fetch_yield(self, query: Query) -> Generator[Record, None, None]:
+        """
+        fetch a generator of records using the specified query
+        """
+        if self.conn is None:
+            raise NotAquired
+        with self.conn.cursor() as cursor:
+            cursor.execute(query)
+            for record in cursor:
+                yield record
 
     def execute(self, query: Query):
         """

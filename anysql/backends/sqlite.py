@@ -7,7 +7,7 @@ import sqlite3
 import functools
 import threading
 from concurrent.futures import Future
-from typing import Callable, Optional, Any, List
+from typing import Callable, Generator, Optional, Any, List
 from typing_extensions import Self
 
 from ..uri import DatabaseURI
@@ -28,11 +28,11 @@ ConnectionClosed = ConnectionError('Connection closed')
 
 class Cursor:
     """Sqlite Thread Supported Cursor Instance"""
- 
+
     def __init__(self, db: 'Database', cur: sqlite3.Cursor):
         self.db  = db
         self.cur = cur
- 
+
     def __enter__(self) -> Self:
         return self
 
@@ -42,19 +42,19 @@ class Cursor:
     def _execute(self, func: Callable, *args, **kwargs):
         """execute function using database thread to run"""
         return self.db._execute(func, *args, **kwargs)
- 
+
     def execute(self, query: str) -> Self:
         """
         execute the given query and return the cursor result
         """
-        self.db._execute(self.cur.execute, query)
+        self._execute(self.cur.execute, query)
         return self
- 
+
     def executemany(self, queries: List[str]) -> Self:
         """
         execute the given queries and return the cursor result
         """
-        self.db._execute(self.cur.executemany, queries)
+        self._execute(self.cur.executemany, queries)
         return self
 
     def fetchone(self):
@@ -69,6 +69,17 @@ class Cursor:
         """
         return self._execute(self.cur.fetchall)
 
+    def fetchyield(self, query: Query) -> Generator[Record, None, None]:
+        """
+        retrieve generator of results from executed query
+        """
+        cursor = self._execute(self.cur.execute, query)
+        while True:
+            try:
+                yield self._execute(next, cursor)
+            except StopIteration:
+                break
+
     def close(self):
         """
         close cursor and exit
@@ -77,15 +88,15 @@ class Cursor:
 
 class Database(threading.Thread):
     """Sqlite Thread Supported Database Connection Instance"""
- 
+
     def __init__(self, connector: Connector):
         super().__init__()
         self.daemon    = True
         self.queue     = queue.Queue()
-        self.boundry   = threading.Barrier(2) 
+        self.boundry   = threading.Barrier(2)
         self.connector = connector
         self.connection: Optional[sqlite3.Connection] = None
- 
+
     def run(self):
         """main function used for calling sqlite actions"""
         while not self.boundry.n_waiting:
@@ -99,7 +110,7 @@ class Database(threading.Thread):
             except BaseException as exc:
                 future.set_exception(exc)
         self.boundry.wait()
- 
+
     def _execute(self, func: Callable, *args, **kwargs) -> Any:
         """internal function to pass func to run into thread and get result"""
         if not self.connection:
@@ -109,7 +120,7 @@ class Database(threading.Thread):
             func = functools.partial(func, *args, **kwargs)
         self.queue.put((future, func))
         return future.result()
- 
+
     def __enter__(self) -> Self:
         self.connect()
         return self
@@ -128,7 +139,7 @@ class Database(threading.Thread):
         future = Future()
         self.queue.put((future, self.connector))
         self.connection = future.result()
- 
+
     def disconnect(self):
         """
         disconnect from sqlite if connected
@@ -145,7 +156,7 @@ class Database(threading.Thread):
         commit queued changes to db
         """
         if self.connection is None:
-           raise ConnectionClosed 
+           raise ConnectionClosed
         return self._execute(self.connection.commit)
 
     def rollback(self):
@@ -153,15 +164,15 @@ class Database(threading.Thread):
         revert queued changes from db
         """
         if self.connection is None:
-           raise ConnectionClosed 
+           raise ConnectionClosed
         return self._execute(self.connection.rollback)
- 
+
     def cursor(self) -> Cursor:
         """
         generate a sqlite cursor object for making queries
         """
         if self.connection is None:
-           raise ConnectionClosed 
+           raise ConnectionClosed
         cursor = self._execute(self.connection.cursor)
         return Cursor(self, cursor)
 
@@ -170,7 +181,7 @@ class Database(threading.Thread):
         execute the given query on the db and return a cursor
         """
         if self.connection is None:
-           raise ConnectionClosed 
+           raise ConnectionClosed
         rawcur = self._execute(self.connection.execute, query)
         cursor = Cursor(self, rawcur)
         if close:
@@ -182,7 +193,7 @@ class Database(threading.Thread):
         execute the given queries on the db and return a cursor
         """
         if self.connection is None:
-           raise ConnectionClosed 
+           raise ConnectionClosed
         cursor = self._execute(self.connection.executemany, queries)
         return Cursor(self, cursor)
 
@@ -227,13 +238,20 @@ class SqliteConnection(IConnection):
         """
         cursor = self.db.execute(query)
         return cursor.fetchone()
- 
+
     def fetch_all(self, query: Query) -> List[Record]:
         """
         fetch a list of records using the specified query
         """
         cursor = self.db.execute(query)
         return cursor.fetchall()
+
+    def fetch_yield(self, query: Query) -> Generator[Record, None, None]:
+        """
+        fetch a generator of records using the specified query
+        """
+        cursor = self.db.cursor()
+        return cursor.fetchyield(query)
 
     def execute(self, query: Query):
         """
@@ -246,7 +264,7 @@ class SqliteConnection(IConnection):
         execute the following queries in order
         """
         self.db.executemany([str(q) for q in queries])
- 
+
     def transaction(self) -> ITransaction:
         """
         spawn transaction handler for sqlite
@@ -262,12 +280,12 @@ class SqliteConnection(IConnection):
 
 class SqliteDatabase(IDatabase):
     """Internal Sqlite Database Interface"""
- 
+
     def __init__(self, uri: DatabaseURI, **kwargs: Any):
         kwargs.setdefault('isolation_level', None)
         url       = str(uri).split('//', 1)[-1]
         self.uri  = uri
-        self.db   = Database(lambda: sqlite3.connect(url, **kwargs)) 
+        self.db   = Database(lambda: sqlite3.connect(url, **kwargs))
         self.conn = SqliteConnection(self.db)
 
     def connect(self):

@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "anysql"
+version = "0.0.4"
+requires-python = ">=3.8"
+dependencies = [
+  'pypool3>=0.0.2',
+  'contextvars>=2.4',
+  'typing_extensions>=4.12.2',
+]
+authors = [
+    {name = "Andrew C Scott", email = "imgurbot12@gmail.com"},
+]
+description = "Lightweight, Thread-Safe, Version-Agnostic, SQL Client Implementation"
+readme = {file = "README.md", content-type = "text/markdown"}
+license = { file = 'LICENSE' }
+keywords = ["sql", "universal", "database", "simple"]
+classifiers = [
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.optional-dependencies]
+mysql    = ["pymysql>=1.1.1"]
+postgres = ["psycopg2-binary>=2.9.9"]
+
+[project.urls]
+Repository = "https://github.com/imgurbot12/anysql.git"
+

@@ -90,7 +90,7 @@ def prepare(query: Union[str, Prepared], cache: bool = False) -> Prepared:
         # track escape characters
         if c == '\\':
             escapes += 1
-            continue 
+            continue
         elif escapes > 0:
             escapes = 0
         # track words in order to detect arg-placeholders

@@ -5,7 +5,7 @@ import enum
 import uuid
 from abc import abstractmethod
 from collections.abc import Sequence
-from typing import Union, Mapping, Protocol, Any, Optional, List
+from typing import Generator, Union, Mapping, Protocol, Any, Optional, List
 from typing_extensions import runtime_checkable
 
 from .uri import DatabaseURI
@@ -51,19 +51,19 @@ class Query(Prepared):
     pass
 
 class Record(Sequence):
- 
+
     @abstractmethod
     def __iter__(self):
         raise NotImplementedError
 
     @abstractmethod
-    def __getitem__(self, key: str) -> Any:
+    def __getitem__(self, key) -> Any:
         raise NotImplementedError
 
 class ITransaction(Protocol):
     is_root:   bool
     savepoint: Optional[str]
- 
+
     @abstractmethod
     def _execute(self, query: str):
         raise NotImplementedError
@@ -85,7 +85,7 @@ class ITransaction(Protocol):
             self._execute('COMMIT')
             return
         self._execute(f'RELEASE SAVEPOINT {self.savepoint}')
- 
+
     def rollback(self):
         """
         rollback any changes made during the transaction
@@ -114,6 +114,10 @@ class IConnection(Protocol):
         raise NotImplementedError
 
     @abstractmethod
+    def fetch_yield(self, query: Query) -> Generator[Record, None, None]:
+        raise NotImplementedError
+
+    @abstractmethod
     def execute(self, query: Query):
         raise NotImplementedError
 
@@ -128,7 +132,7 @@ class IConnection(Protocol):
 
 @runtime_checkable
 class IDatabase(Protocol):
- 
+
     @abstractmethod
     def __init__(self, uri: DatabaseURI, **kwargs: Any):
         raise NotImplementedError

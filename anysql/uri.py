@@ -20,13 +20,13 @@ class DatabaseURI:
     def __init__(self, uri: str):
         self._raw = uri
         self._uri = urlsplit(uri)
-    
+
     def __str__(self) -> str:
         return self._raw
 
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}({self._raw})'
-    
+
     def __eq__(self, other: Any) -> bool:
         return str(self) == str(other)
 
@@ -37,22 +37,22 @@ class DatabaseURI:
     @property
     def dialect(self) -> str:
         return self.scheme.split('+', 1)[0]
-    
+
     @property
     def driver(self) -> Optional[str]:
         if '+' not in self.scheme:
             return
         return self.scheme.split('+', 1)[1]
-    
+
     @property
     def userinfo(self) -> Optional[str]:
         args = (self._uri.username, self._uri.password)
         return ':'.join(c for c in args if c) or None
-    
+
     @property
     def username(self) -> Optional[str]:
         return unquote(self._uri.username) if self._uri.username else None
-    
+
     @property
     def password(self) -> Optional[str]:
         return unquote(self._uri.password) if self._uri.password else None
@@ -66,7 +66,7 @@ class DatabaseURI:
         return self._uri.hostname or \
             self.options.get('host') or \
             self.options.get('unix_host')
- 
+
     @property
     def database(self) -> str:
         return unquote(self._uri.path.lstrip('/'))

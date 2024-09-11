@@ -6,7 +6,7 @@ import functools
 import threading
 import importlib
 import contextvars
-from typing import Any, List, Sequence, Optional, Callable
+from typing import Any, Generator, List, Sequence, Optional, Callable
 from typing_extensions import Self
 
 from .uri import DatabaseURI
@@ -17,8 +17,8 @@ from .interface import *
 __all__ = [
     'BACKENDS',
 
-    'Database', 
-    'Connection', 
+    'Database',
+    'Connection',
     'Transaction'
 ]
 
@@ -72,12 +72,12 @@ class Database:
         self.connected        = False
         self.context          = contextvars.ContextVar("connection_context")
         self.cache_statements = cache_statements
- 
+
     def __enter__(self) -> Self:
         """auto-connect on start of context"""
         self.connect()
         return self
- 
+
     def __exit__(self, *_):
         """auto-disconnect at end of context"""
         self.disconnect()
@@ -115,12 +115,12 @@ class Database:
             connection = Connection(self.backend.connection())
             self.context.set(connection)
             return connection
- 
+
     def fetch_one(self, query: Stmt, values: Args = None) -> Optional[Record]:
         """
         fetch a single record matchingt the given sql statement
 
-        :param sql:    raw paramd sql statement
+        :param query:  raw paramd sql statement
         :param values: values to pass into sql statement
         :return:       single sql row record (if any)
         """
@@ -131,18 +131,31 @@ class Database:
         """
         fetch all the records matching the given sql statement
 
-        :param sql:    raw paramd sql statement
+        :param query:  raw paramd sql statement
         :param values: values to pass into sql statement
         :return:       sql rows in a list
         """
         with self.connection() as conn:
             return conn.fetch_all(query, values)
 
+    def fetch_yield(self,
+        query: Stmt, values: Args = None) -> Generator[Record, None, None]:
+        """
+        fetch generator of records matching the given sql statement
+
+        :param query:  raw paramd sql statement
+        :param values: values to pass to sql statement
+        :return:       sql rows in generator
+        """
+        with self.connection() as conn:
+            for record in conn.fetch_yield(query, values):
+                yield record
+
     def execute(self, query: Stmt, values: Args = None):
         """
         execute the sql statement once with the given values
 
-        :param sql:    raw paramd sql statement
+        :param query:  raw paramd sql statement
         :param values: values to pass into sql statement
         """
         with self.connection() as conn:
@@ -152,7 +165,7 @@ class Database:
         """
         execute the sql statement with multiple sets of values
 
-        :param sql:    raw paramd sql statement
+        :param query:  raw paramd sql statement
         :parma values: list of values to pass into the statement
         """
         with self.connection() as conn:
@@ -203,7 +216,7 @@ class Connection:
         """
         fetch a single record matchingt the given sql statement
 
-        :param sql:    raw paramd sql statement
+        :param query:  raw paramd sql statement
         :param values: values to pass into sql statement
         :return:       single sql row record (if any)
         """
@@ -214,18 +227,30 @@ class Connection:
         """
         fetch all the records matching the given sql statement
 
-        :param sql:    raw paramd sql statement
+        :param query:  raw paramd sql statement
         :param values: values to pass into sql statement
         :return:       sql rows in a list
         """
         query = mogrify(query, values, self.cache_statements)
         return self.backend.fetch_all(query)
 
+    def fetch_yield(self,
+        query: Stmt, values: Args = None) -> Generator[Record, None, None]:
+        """
+        fetch generator of records matching the given sql statement
+
+        :param query:  raw paramd sql statement
+        :param values: values to pass to sql statement
+        :return:       sql rows in generator
+        """
+        query = mogrify(query, values, self.cache_statements)
+        return self.backend.fetch_yield(query)
+
     def execute(self, query: Stmt, values: Args = None):
         """
         execute the sql statement once with the given values
 
-        :param sql:    raw paramd sql statement
+        :param query:  raw paramd sql statement
         :param values: values to pass into sql statement
         """
         query = mogrify(query, values, self.cache_statements)
@@ -235,7 +260,7 @@ class Connection:
         """
         execute the sql statement with multiple sets of values
 
-        :param sql:    raw paramd sql statement
+        :param query:  raw paramd sql statement
         :parma values: list of values to pass into the statement
         """
         query = prepare(query)
