@@ -1,6 +1,6 @@
 AnySQL
 -------
-Lightweight, Thread-Safe, Version-Agnostic, SQL Client Implementation 
+Lightweight, Thread-Safe, Version-Agnostic, SQL Client Implementation
 inspired by [Databases](https://github.com/encode/databases)
 
 ### Features
@@ -12,20 +12,22 @@ inspired by [Databases](https://github.com/encode/databases)
 
 ### Installation
 
-```
-pip install anysql
+```bash
+$ pip install anysql           # plain install
+$ pip install anysql[mysql]    # install with mysql driver
+$ pip install anysql[postgres] # install with postgres driver
 ```
 
 ### Security
 
-It should be noted that anysql implements its own query parameterization to 
-allow for greater API flexibility and performance, rather than rely on 
-individual sql backends or relying on massive frameworks like sqlalchemy to 
+It should be noted that anysql implements its own query parameterization to
+allow for greater API flexibility and performance, rather than rely on
+individual sql backends or relying on massive frameworks like sqlalchemy to
 handle query generation.
 
-The existing parameterization has been thoroughly tested with 
-[sqlmap](https://github.com/sqlmapproject/sqlmap), the world standard of 
-sql pentesting-tools, to prevent and detect any possible sql-injection 
+The existing parameterization has been thoroughly tested with
+[sqlmap](https://github.com/sqlmapproject/sqlmap), the world standard of
+sql pentesting-tools, to prevent and detect any possible sql-injection
 vulnerabilities.
 
 The test-suite used is publically available within the source-code repo
