@@ -3,7 +3,10 @@ AnySQL Escape/Unescape Implementation
 """
 import math
 import datetime
-from typing import *
+import inspect
+from enum import Enum
+from typing import (
+    Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Type, Union)
 
 from .interface import *
 
@@ -51,20 +54,22 @@ def mogrify(query: Stmt, args: Args = None, cache: bool = True) -> Query:
             query = query.format(**args)
     return Query(query)
 
-def is_placeholder(chars: List[str]) -> Optional[str]:
+def is_placeholder(chars: str) -> Optional[str]:
     """check if placeholder and return name if true"""
     if not chars:
-        return
-    if chars[0] == ':':
+        return None
+    if chars[0] == ':' and chars[-1] != ':':
         return ''.join(chars[1:])
-    if chars[0] == '(' and chars[-2:] == ')s':
-        return ''.join(chars[1:-2])
-    if chars[0] == '{' and chars[-1] == '}':
+    if chars[:2] == '%(' and chars[-2:] == ')s':
+        return ''.join(chars[2:-2])
+    if chars.count('{') == 1 and chars.count('}') == 1 \
+        and chars[0] == '{' and chars[-1] == '}':
         return ''.join(chars[1:-1])
-    if len(chars) == 1 and chars[0] == '?':
+    if chars == '?':
         return ''
-    if len(chars) == 2 and chars == ['%', 's']:
+    if chars == '%s':
         return ''
+    return None
 
 def prepare(query: Union[str, Prepared], cache: bool = False) -> Prepared:
     """
@@ -84,8 +89,12 @@ def prepare(query: Union[str, Prepared], cache: bool = False) -> Prepared:
         return PREPARED_CACHE[query]
     # parse sql query and find placeholders
     original = '' if not cache else str(query)
-    placeholders, counter = [], 0
-    word, escapes, wordend, quotes = [], 0, False, False
+    counter  = 0
+    escapes  = 0
+    wordend = False
+    quotes  = False
+    word:         List[str]             = []
+    placeholders: List[Tuple[str, str]] = []
     for c in (query + ' '):
         # track escape characters
         if c == '\\':
@@ -93,6 +102,7 @@ def prepare(query: Union[str, Prepared], cache: bool = False) -> Prepared:
             continue
         elif escapes > 0:
             escapes = 0
+
         # track words in order to detect arg-placeholders
         if c.isspace():
             wordend = len(word) > 0
@@ -100,12 +110,13 @@ def prepare(query: Union[str, Prepared], cache: bool = False) -> Prepared:
             quotes = not quotes if escapes % 2 == 0 else quotes
         elif not quotes and c in ';,.=':
             wordend = len(word) > 0
-        elif c not in '()[]{}':
+        elif c not in '[]()' or (word and word[0] == '%'):
             word.append(c)
         if not wordend:
             continue
+
         # translate word if placeholder and rest word tracker
-        name = is_placeholder(word)
+        name = is_placeholder(''.join(word))
         if name is not None:
             if not name:
                 name     = str(counter)
@@ -115,6 +126,7 @@ def prepare(query: Union[str, Prepared], cache: bool = False) -> Prepared:
             placeholders.append((f'{{{name}}}', ''.join(word)))
         word.clear()
         wordend = False
+
     # replace various placeholders w/ standard formatting placeholder
     for pholder, match in placeholders:
         query = query.replace(match, pholder, 1)
@@ -141,26 +153,31 @@ def escape_arg(arg: Any, mapping: OptEncoders = None) -> str:
     """
     mapping = mapping or ENCODER_MAP
     encoder = mapping.get(type(arg))
-    if not encoder:
-        raise TypeError(f'no escape handler for {type(arg)!r}')
-    return encoder(arg, mapping)
+    if encoder is not None:
+        return encoder(arg, mapping)
+    if isinstance(arg, Enum):
+        return escape_enum(arg, mapping)
+    for stype, encoder in ENCODER_MAP.items():
+        if issubclass(arg.__class__, stype):
+            return encoder(arg, mapping)
+    raise TypeError(f'no escape handler for {type(arg)!r}')
 
-def escape_dict(arg: dict, mapping: OptEncoders = None):
+def escape_dict(arg: dict, mapping: OptEncoders = None) -> str:
     return str({k:escape_arg(v, mapping) for k,v in arg.items()})
 
-def escape_sequence(arg: Sequence, mapping: OptEncoders = None):
+def escape_sequence(arg: Sequence, mapping: OptEncoders = None) -> str:
     return '(' + ','.join(escape_arg(i, mapping) for i in arg) + ')'
 
-def escape_int(arg: int, _ = None):
+def escape_int(arg: int, _ = None) -> str:
     return str(arg)
 
-def escape_bool(arg: bool, _ = None):
+def escape_bool(arg: bool, _ = None) -> str:
     return str(int(arg))
 
-def escape_none(*_):
+def escape_none(*_) -> str:
     return 'NULL'
 
-def escape_float(arg: float, _ = None):
+def escape_float(arg: float, _ = None) -> str:
     if math.isnan(arg) or not math.isfinite(arg):
         raise ProgrammingError(f'{arg!r} can not be used in AnySQL')
     f  = repr(arg)
@@ -168,17 +185,20 @@ def escape_float(arg: float, _ = None):
     return f
 
 #NOTE: hacky way to force repr to always use single quotes
-def escape_str(arg: str, _: OptEncoders = None):
+def escape_str(arg: str, _: OptEncoders = None) -> str:
     return "'" + repr('"' + arg)[2:].replace("\\'", "''")
 
-def escape_bytes(arg: bytes, _ = None):
+def escape_bytes(arg: bytes, _ = None) -> str:
     return escape_str(arg.decode('ascii', 'surrogateescape'))
 
-def escape_date(arg: datetime.date, _ = None):
+def escape_date(arg: datetime.date, _ = None) -> str:
     return repr(arg.isoformat())
 
-def escape_datetime(arg: datetime.datetime, _ = None):
+def escape_datetime(arg: datetime.datetime, _ = None) -> str:
     return repr(arg.isoformat(' '))
+
+def escape_enum(arg: Enum, mapping: OptEncoders = None) -> str:
+    return escape_arg(arg.value, mapping)
 
 #** Init **#
 

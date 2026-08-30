@@ -30,6 +30,8 @@ Args = Union[Mapping[str, Any], Sequence, None]
 #: typehint for all valid mogrify query types
 Stmt = Union[str, 'Prepared', 'Query']
 
+Record = Sequence
+
 #** Classes **#
 
 class ProgrammingError(Exception):
@@ -50,16 +52,6 @@ class Query(Prepared):
     """Custom StringType to Denote Complete QueryString w/o Placeholders"""
     pass
 
-class Record(Sequence):
-
-    @abstractmethod
-    def __iter__(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def __getitem__(self, key) -> Any:
-        raise NotImplementedError
-
 class ITransaction(Protocol):
     is_root:   bool
     savepoint: Optional[str]
@@ -69,7 +61,9 @@ class ITransaction(Protocol):
         raise NotImplementedError
 
     def start(self, is_root: bool, **options):
-        """internal handler for supporting transaction-start"""
+        """
+        internal handler for supporting transaction-start
+        """
         self.is_root = is_root
         if self.is_root:
             self._execute('BEGIN')

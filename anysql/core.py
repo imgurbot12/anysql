@@ -65,6 +65,9 @@ def get_backend(uri: DatabaseURI, kwargs: dict) -> IDatabase:
 
 class Database:
     """AnySQL Threadsafe Database Implementation"""
+    __slots__ = ('uri', 'backend', 'connected', 'context', 'cache_statements')
+
+    context: contextvars.ContextVar
 
     def __init__(self, uri: str, cache_statements: bool = True, **kwargs):
         self.uri              = DatabaseURI(uri)
@@ -183,6 +186,8 @@ class Database:
 
 class Connection:
     """AnySQL Threadsafe Connection Implementation"""
+    __slots__ = ('backend', 'conn_lock', 'conn_count',
+        'tran_lock', 'tran_stack', 'cache_statements')
 
     def __init__(self, backend: IConnection, cache_statements: bool = True):
         self.backend    = backend
@@ -287,6 +292,8 @@ class Connection:
 
 class Transaction:
     """AnySQL Threadsafe Transaction Implementation"""
+    __slots__ = ('connection', 'conn_callback',
+        'force_rollback', 'options', 'transaction')
 
     def __init__(self,
         connection:     Optional[Connection]               = None,

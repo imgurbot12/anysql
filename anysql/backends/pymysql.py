@@ -27,6 +27,8 @@ NotAquired = ConnectionError('Mysql connection not acquired')
 
 class ConnPool:
     """PyMYSQL Connection Pool Implementation"""
+    __slots__ = ('uri', 'pool')
+
     pool: pypool.Pool[RawConn]
 
     def __init__(self, uri: DatabaseURI, **kwargs):
@@ -50,7 +52,7 @@ class ConnPool:
             port=self.uri.port or 3306,
             user=self.uri.username or getpass.getuser(),
             password=self.uri.password or '',
-            db=self.uri.database,
+            database=self.uri.database,
             autocommit=True,
             **self.uri.options,
         )
@@ -75,11 +77,12 @@ class ConnPool:
 
 class MysqlTransaction(ITransaction):
     """Internal Mysql Transaction Interface"""
+    __slots__ = ('conn', 'is_root', 'savepoint')
 
     def __init__(self, conn: 'MysqlConnection'):
-        self.conn    = conn
-        self.is_root = False
-        self.savepoint: Optional[str] = None
+        self.conn      = conn
+        self.is_root   = False
+        self.savepoint = None
 
     def _execute(self, query: str):
         """internal executor function"""
@@ -93,6 +96,7 @@ class MysqlTransaction(ITransaction):
 
 class MysqlConnection(IConnection):
     """Internal Mysql Connection Interface"""
+    __slots__ = ('pool', 'conn')
 
     def __init__(self, pool: ConnPool):
         self.pool: ConnPool          = pool
@@ -133,7 +137,7 @@ class MysqlConnection(IConnection):
             raise NotAquired
         with self.conn.cursor() as cursor:
             cursor.execute(query)
-            return cursor.fetchall()
+            return list(cursor.fetchall())
 
     def fetch_yield(self, query: Query) -> Generator[Record, None, None]:
         """
@@ -170,6 +174,7 @@ class MysqlConnection(IConnection):
 
 class MysqlDatabase(IDatabase):
     """Internal Mysql Database Interface"""
+    __slots__ = ('uri', 'kwargs', 'pool')
 
     def __init__(self, uri: DatabaseURI, **kwargs):
         self.uri    = uri

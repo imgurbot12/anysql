@@ -7,13 +7,16 @@ import sqlite3
 import functools
 import threading
 from concurrent.futures import Future
-from typing import Callable, Generator, Optional, Any, List
-from typing_extensions import Self
+from typing import Callable, Generator, Optional, Any, List, TypeVar
+from typing_extensions import ParamSpec, Self
 
 from ..uri import DatabaseURI
 from ..interface import *
 
 #** Variables **#
+
+P = ParamSpec('P')
+R = TypeVar('R')
 
 #: backend logging instance
 logger = logging.getLogger('anysql.sqlite')
@@ -28,6 +31,7 @@ ConnectionClosed = ConnectionError('Connection closed')
 
 class Cursor:
     """Sqlite Thread Supported Cursor Instance"""
+    __slots__ = ('db', 'cur')
 
     def __init__(self, db: 'Database', cur: sqlite3.Cursor):
         self.db  = db
@@ -48,13 +52,6 @@ class Cursor:
         execute the given query and return the cursor result
         """
         self._execute(self.cur.execute, query)
-        return self
-
-    def executemany(self, queries: List[str]) -> Self:
-        """
-        execute the given queries and return the cursor result
-        """
-        self._execute(self.cur.executemany, queries)
         return self
 
     def fetchone(self):
@@ -88,14 +85,18 @@ class Cursor:
 
 class Database(threading.Thread):
     """Sqlite Thread Supported Database Connection Instance"""
+    __slots__ = ('daemon', 'queue', 'boundry', 'connector', 'connection')
+
+    queue:      queue.Queue
+    connection: Optional[sqlite3.Connection]
 
     def __init__(self, connector: Connector):
         super().__init__()
-        self.daemon    = True
-        self.queue     = queue.Queue()
-        self.boundry   = threading.Barrier(2)
-        self.connector = connector
-        self.connection: Optional[sqlite3.Connection] = None
+        self.daemon     = True
+        self.queue      = queue.Queue()
+        self.boundry    = threading.Barrier(2)
+        self.connector  = connector
+        self.connection = None
 
     def run(self):
         """main function used for calling sqlite actions"""
@@ -111,11 +112,14 @@ class Database(threading.Thread):
                 future.set_exception(exc)
         self.boundry.wait()
 
-    def _execute(self, func: Callable, *args, **kwargs) -> Any:
-        """internal function to pass func to run into thread and get result"""
+    def _execute(self,
+        func: Callable[P, R], *args: P.args, **kwargs: P.kwargs) -> R:
+        """
+        internal function to pass func to run into thread and get result
+        """
         if not self.connection:
             raise ConnectionClosed
-        future = Future()
+        future: Future[R] = Future()
         if args or kwargs:
             func = functools.partial(func, *args, **kwargs)
         self.queue.put((future, func))
@@ -188,17 +192,9 @@ class Database(threading.Thread):
             cursor.close()
         return cursor
 
-    def executemany(self, queries: List[str]) -> Cursor:
-        """
-        execute the given queries on the db and return a cursor
-        """
-        if self.connection is None:
-           raise ConnectionClosed
-        cursor = self._execute(self.connection.executemany, queries)
-        return Cursor(self, cursor)
-
 class SqliteTransaction(ITransaction):
     """Internal SQLite Backend Transaction Interface"""
+    __slots__ = ('db', 'is_root', 'savepoint')
 
     def __init__(self, db: Database):
         self.db        = db
@@ -211,6 +207,7 @@ class SqliteTransaction(ITransaction):
 
 class SqliteConnection(IConnection):
     """Internal Sqlite Connection Interface"""
+    __slots__ = ('db', 'connected')
 
     def __init__(self, db: Database):
         self.db        = db
@@ -259,12 +256,6 @@ class SqliteConnection(IConnection):
         """
         self.db.execute(query)
 
-    def execute_many(self, queries: List[Query]):
-        """
-        execute the following queries in order
-        """
-        self.db.executemany([str(q) for q in queries])
-
     def transaction(self) -> ITransaction:
         """
         spawn transaction handler for sqlite
@@ -280,6 +271,7 @@ class SqliteConnection(IConnection):
 
 class SqliteDatabase(IDatabase):
     """Internal Sqlite Database Interface"""
+    __slots__ = ('uri', 'db', 'conn')
 
     def __init__(self, uri: DatabaseURI, **kwargs: Any):
         kwargs.setdefault('isolation_level', None)

@@ -3,7 +3,7 @@ Threaded Psycopg2
 """
 import getpass
 import logging
-from typing import Generator, Optional, List, Any
+from typing import Generator, Optional, List
 from typing_extensions import TypeAlias
 
 import pypool
@@ -19,7 +19,7 @@ from ..interface import *
 logger = logging.getLogger('anysql.postgres')
 
 #: postgres connection type
-RawConn: TypeAlias = Any #type: psycopg2.connection
+RawConn: TypeAlias = 'psycopg2.extensions.connection'
 
 #: common connection exception
 NotAquired = ConnectionError('Mysql connection not acquired')
@@ -28,6 +28,8 @@ NotAquired = ConnectionError('Mysql connection not acquired')
 
 class ConnPool:
     """Psycopg2 Connection Pool Implementation"""
+    __slots__ = ('uri', 'pool')
+
     pool: pypool.Pool[RawConn]
 
     def __init__(self, uri: DatabaseURI, **kwargs):
@@ -77,11 +79,12 @@ class ConnPool:
 
 class PostgresTransaction(ITransaction):
     """Internal Psycopg2 Transaction Interface"""
+    __slots__ = ('conn', 'is_root', 'savepoint')
 
     def __init__(self, conn: 'PostgresConnection'):
-        self.conn    = conn
-        self.is_root = False
-        self.savepoint: Optional[str] = None
+        self.conn      = conn
+        self.is_root   = False
+        self.savepoint = None
 
     def _execute(self, query: str):
         """internal executor function"""
@@ -92,6 +95,7 @@ class PostgresTransaction(ITransaction):
 
 class PostgresConnection(IConnection):
     """Internal Psycopg2 Connection Interface"""
+    __slots__ = ('pool', 'conn')
 
     def __init__(self, pool: ConnPool):
         self.pool: ConnPool          = pool
@@ -132,7 +136,7 @@ class PostgresConnection(IConnection):
             raise NotAquired
         with self.conn.cursor() as cursor:
             cursor.execute(query)
-            return cursor.fetchall()
+            return list(cursor.fetchall())
 
     def fetch_yield(self, query: Query) -> Generator[Record, None, None]:
         """
@@ -169,6 +173,7 @@ class PostgresConnection(IConnection):
 
 class PostgresDatabase(IDatabase):
     """Internal Psycopg2 Database Interface"""
+    __slots__ = ('uri', 'kwargs', 'pool')
 
     def __init__(self, uri: DatabaseURI, **kwargs):
         self.uri    = uri

@@ -41,7 +41,7 @@ class DatabaseURI:
     @property
     def driver(self) -> Optional[str]:
         if '+' not in self.scheme:
-            return
+            return None
         return self.scheme.split('+', 1)[1]
 
     @property
