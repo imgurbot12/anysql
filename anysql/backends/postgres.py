@@ -149,7 +149,7 @@ class PostgresConnection(IConnection):
             for record in cursor:
                 yield record
 
-    def execute(self, query: Query):
+    def execute(self, query: Query) -> int:
         """
         execute the following query
         """
@@ -157,6 +157,7 @@ class PostgresConnection(IConnection):
             raise NotAquired
         with self.conn.cursor() as cursor:
             cursor.execute(query)
+            return cursor.rowcount
 
     def transaction(self) -> ITransaction:
         """

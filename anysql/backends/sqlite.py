@@ -47,6 +47,10 @@ class Cursor:
         """execute function using database thread to run"""
         return self.db._execute(func, *args, **kwargs)
 
+    @property
+    def rowcount(self) -> int:
+        return self._execute(lambda: self.cur.rowcount)
+
     def execute(self, query: str) -> Self:
         """
         execute the given query and return the cursor result
@@ -250,11 +254,12 @@ class SqliteConnection(IConnection):
         cursor = self.db.cursor()
         return cursor.fetchyield(query)
 
-    def execute(self, query: Query):
+    def execute(self, query: Query) -> int:
         """
         execute the following query
         """
-        self.db.execute(query)
+        cursor = self.db.execute(query)
+        return cursor.rowcount
 
     def transaction(self) -> ITransaction:
         """

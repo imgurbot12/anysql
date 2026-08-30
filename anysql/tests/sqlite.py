@@ -49,8 +49,8 @@ class SqliteTests(TestCase):
 
         c1 = self.db.execute('UPDATE People SET PersonId=2 WHERE PersonId=1')
         c2 = self.db.execute('UPDATE People SET PersonId=2 WHERE PersonId=1')
-        # self.assertEqual(count1, 1)
-        # self.assertEqual(count2, 0)
+        self.assertEqual(c1, 1)
+        self.assertEqual(c2, 0)
         rec = self.db.fetch_all('SELECT * FROM People')
         self.assertListEqual(rec, [(2, *billy[1:])])
 

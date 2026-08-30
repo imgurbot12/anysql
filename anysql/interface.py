@@ -112,7 +112,7 @@ class IConnection(Protocol):
         raise NotImplementedError
 
     @abstractmethod
-    def execute(self, query: Query):
+    def execute(self, query: Query) -> int:
         raise NotImplementedError
 
     @abstractmethod

@@ -154,7 +154,7 @@ class Database:
             for record in conn.fetch_yield(query, values):
                 yield record
 
-    def execute(self, query: Stmt, values: Args = None):
+    def execute(self, query: Stmt, values: Args = None) -> int:
         """
         execute the sql statement once with the given values
 
