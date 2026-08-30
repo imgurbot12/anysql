@@ -116,6 +116,11 @@ class EscapeTests(TestCase):
             ArgMode.ARGS
         )
         self.assertPrepare(
+            'UPDATE Bar SET A=A+? WHERE B=?',
+            'UPDATE Bar SET A=A+{0} WHERE B={1}',
+            ArgMode.ARGS,
+        )
+        self.assertPrepare(
             'UPDATE Baz SET A="w?",B=\'%ss\'',
             'UPDATE Baz SET A="w?",B=\'%ss\'',
             ArgMode.NONE,
@@ -142,11 +147,16 @@ class EscapeTests(TestCase):
             "UPDATE Baz SET A=1,B='b' WHERE C=NULL",
             (1, 'b', None)
         )
-        self.assertMogrify(
+        for stmt in (
             'INSERT INTO Foo VALUES (?, ?, ?, ?)',
-            "INSERT INTO Foo VALUES (1, 'Billy', 'Bob', NULL)",
-            (1, 'Billy', 'Bob', None)
-        )
+            'INSERT INTO Foo VALUES (%s, %s, %s, %s)',
+        ):
+            self.assertMogrify(
+                stmt,
+                "INSERT INTO Foo VALUES (1, 'Billy', 'Bob', NULL)",
+                (1, 'Billy', 'Bob', None)
+            )
+
         with self.assertRaises(ProgrammingError):
             mogrify('SELECT 1 FROM Foo WHERE A=? AND B=%s', {'a': 1, 'b': 2})
         with self.assertRaises(ProgrammingError):

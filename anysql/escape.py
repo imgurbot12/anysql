@@ -3,7 +3,6 @@ AnySQL Escape/Unescape Implementation
 """
 import math
 import datetime
-import inspect
 from enum import Enum
 from typing import (
     Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Type, Union)
@@ -108,9 +107,13 @@ def prepare(query: Union[str, Prepared], cache: bool = False) -> Prepared:
             wordend = len(word) > 0
         elif c in ("'", '"', ''):
             quotes = not quotes if escapes % 2 == 0 else quotes
-        elif not quotes and c in ';,.=':
+        elif not quotes and c in ';,.+=':
             wordend = len(word) > 0
-        elif c not in '[]()' or (word and word[0] == '%'):
+        elif word and word[0] == '%':
+            if c == ')' and '(' not in word:
+                continue
+            word.append(c)
+        elif c not in '[]()':
             word.append(c)
         if not wordend:
             continue
