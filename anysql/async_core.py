@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Callable, List, Optional, Sequence, TypeVar, Union, cast, overload
 from typing_extensions import AsyncGenerator, ParamSpec
 
+from .uri import DatabaseURI
 from .core import Connection, Database, Transaction
 from .interface import Args, Record, Stmt
 
@@ -48,6 +49,10 @@ class AsyncDatabase:
         """
         task = functools.partial(func, *args, **kwargs)
         return await self.loop.run_in_executor(self.pool, task)
+
+    @property
+    def uri(self) -> DatabaseURI:
+        return self.db.uri
 
     def to_sync(self) -> Database:
         """
