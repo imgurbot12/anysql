@@ -23,7 +23,7 @@ class AsyncDatabase:
     """
     AnySQL Async Thread-Safe Database Implementation
     """
-    __slots__ = ('db', 'pool', 'loop')
+    __slots__ = ('db', 'pool', '_loop')
 
     @overload
     def __init__(self, uri_or_db: str, cache_statements: bool = True, **kwargs):
@@ -41,7 +41,17 @@ class AsyncDatabase:
             if isinstance(uri_or_db, Database) else \
             Database(uri_or_db, cache_statements, **kwargs)
         self.pool = ThreadPoolExecutor(thread_name_prefix='anysql_')
-        self.loop = asyncio.get_running_loop()
+        self._loop = asyncio._get_running_loop()
+
+    @property
+    def uri(self) -> DatabaseURI:
+        return self.db.uri
+
+    @property
+    def loop(self) -> asyncio.AbstractEventLoop:
+        if self._loop is None:
+            self._loop = asyncio.get_event_loop()
+        return self._loop
 
     async def _run_thread(self,
         func: Callable[P, R], *args: P.args, **kwargs: P.kwargs) -> R:
@@ -49,10 +59,6 @@ class AsyncDatabase:
         """
         task = functools.partial(func, *args, **kwargs)
         return await self.loop.run_in_executor(self.pool, task)
-
-    @property
-    def uri(self) -> DatabaseURI:
-        return self.db.uri
 
     def to_sync(self) -> Database:
         """
