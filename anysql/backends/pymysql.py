@@ -10,7 +10,7 @@ import pymysql
 
 from . import Timeout, setdefault
 from ..uri import DatabaseURI
-from ..interface import *
+from ..interface import IConnection, IDatabase, ITransaction, Query, Record
 
 #** Variables **#
 
@@ -26,7 +26,9 @@ NotAquired = ConnectionError('Mysql connection not acquired')
 #** Classes **#
 
 class ConnPool:
-    """PyMYSQL Connection Pool Implementation"""
+    """
+    PyMYSQL Connection Pool Implementation
+    """
     __slots__ = ('uri', 'pool')
 
     pool: pypool.Pool[RawConn]
@@ -41,7 +43,9 @@ class ConnPool:
         logger.debug('conn-pool max={0.max_size} min={0.min_size} expr={0.expiration}'.format(self.pool))
 
     def factory(self) -> RawConn:
-        """connection factory function"""
+        """
+        Connection factory function
+        """
         logger.debug(f'conn-pool size={self.pool.pool_size} max={self.pool.min_size}')
         ssl = self.uri.options.get('ssl')
         if isinstance(ssl, str):
@@ -58,25 +62,35 @@ class ConnPool:
         )
 
     def cleanup(self, conn: RawConn):
-        """connection cleanup function"""
+        """
+        Connection cleanup function
+        """
         if conn.open:
             conn.close()
 
     def get(self, block: bool = True, timeout: Timeout = None) -> RawConn:
-        """retrieve connection from the pool"""
+        """
+        Retrieve connection from the pool
+        """
         return self.pool.get(block, timeout)
 
     def put(self, conn: RawConn, block: bool = True, timeout: Timeout = None):
-        """place connection back into the pool"""
+        """
+        Place connection back into the pool
+        """
         self.pool.put(conn, block, timeout)
 
     def drain(self):
-        """drain and close all open connections"""
+        """
+        Drain and close all open connections
+        """
         logger.debug(f'draining {self.pool.pool_size} connections')
         self.pool.drain()
 
 class MysqlTransaction(ITransaction):
-    """Internal Mysql Transaction Interface"""
+    """
+    Internal MySQL Transaction Interface
+    """
     __slots__ = ('conn', 'is_root', 'savepoint')
 
     def __init__(self, conn: 'MysqlConnection'):
@@ -95,7 +109,9 @@ class MysqlTransaction(ITransaction):
             cursor.execute(query)
 
 class MysqlConnection(IConnection):
-    """Internal Mysql Connection Interface"""
+    """
+    Internal MySQL Connection Interface
+    """
     __slots__ = ('pool', 'conn')
 
     def __init__(self, pool: ConnPool):
@@ -104,7 +120,7 @@ class MysqlConnection(IConnection):
 
     def acquire(self):
         """
-        acquire mysql connection
+        Acquire MySQL connection
         """
         if self.conn is not None:
             raise ConnectionError('Mysql connection already aquired')
@@ -112,7 +128,7 @@ class MysqlConnection(IConnection):
 
     def release(self):
         """
-        release mysql connection
+        Release MySQL connection
         """
         if self.conn is None:
             raise NotAquired
@@ -121,7 +137,7 @@ class MysqlConnection(IConnection):
 
     def fetch_one(self, query: Query) -> Optional[Record]:
         """
-        fetch a single record using the specified query
+        Fetch a single record using the specified query
         """
         if self.conn is None:
             raise NotAquired
@@ -131,7 +147,7 @@ class MysqlConnection(IConnection):
 
     def fetch_all(self, query: Query) -> List[Record]:
         """
-        fetch a list of records using the specified query
+        Fetch a list of records using the specified query
         """
         if self.conn is None:
             raise NotAquired
@@ -141,7 +157,7 @@ class MysqlConnection(IConnection):
 
     def fetch_yield(self, query: Query) -> Generator[Record, None, None]:
         """
-        fetch a generator of records using the specified query
+        Fetch a generator of records using the specified query
         """
         if self.conn is None:
             raise NotAquired
@@ -152,7 +168,7 @@ class MysqlConnection(IConnection):
 
     def execute(self, query: Query) -> int:
         """
-        execute the following query
+        Execute the following query
         """
         if self.conn is None:
             raise NotAquired
@@ -162,19 +178,21 @@ class MysqlConnection(IConnection):
 
     def transaction(self) -> ITransaction:
         """
-        spawn transaction handler for mysql
+        Spawn transaction handler for MySQL
         """
         return MysqlTransaction(self)
 
     @property
     def raw_connection(self):
         """
-        retreive underlying pymysql database object
+        Retrieve underlying MySQL database object
         """
         return self.conn
 
 class MysqlDatabase(IDatabase):
-    """Internal Mysql Database Interface"""
+    """
+    Internal MySQL Database Interface
+    """
     __slots__ = ('uri', 'kwargs', 'pool')
 
     def __init__(self, uri: DatabaseURI, **kwargs):
@@ -184,7 +202,7 @@ class MysqlDatabase(IDatabase):
 
     def connect(self):
         """
-        connect to mysql database
+        Connect to MySQL database
         """
         logger.debug(f'connecting to {self.uri.obscure_password}')
         if self.pool is not None:
@@ -193,7 +211,7 @@ class MysqlDatabase(IDatabase):
 
     def disconnect(self):
         """
-        disconnect from mysql database
+        Disconnect from MySQL database
         """
         logger.debug(f'disconecting from {self.uri.obscure_password}')
         if self.pool is None:
@@ -203,7 +221,7 @@ class MysqlDatabase(IDatabase):
 
     def connection(self) -> IConnection:
         """
-        return connection for mysql database
+        Return connection for MySQL database
         """
         if self.pool is None:
             raise ConnectionError('Mysql not connected')

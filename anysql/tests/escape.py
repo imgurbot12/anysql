@@ -31,7 +31,7 @@ class EscapeTests(TestCase):
 
     def test_escape(self):
         """
-        ensure value escape works as intended
+        Ensure value escape works as intended
         """
         now = datetime.now()
         today = date.today()
@@ -48,7 +48,7 @@ class EscapeTests(TestCase):
 
     def test_escape_enum(self):
         """
-        ensure escaping enum works as intended
+        Ensure escaping enum works as intended
         """
         class Foo(int, Enum):
             A = 1
@@ -62,7 +62,7 @@ class EscapeTests(TestCase):
 
     def test_escape_subclass(self):
         """
-        ensure escaping works on subclasses of base
+        Ensure escaping works on sub-classes of base
         """
         class Quote(str): pass
         class Digit(int): pass
@@ -71,7 +71,7 @@ class EscapeTests(TestCase):
 
     def test_placeholder(self):
         """
-        ensure placeholder replacement works as intended
+        Ensure placeholder replacement works as intended
         """
         self.assertEqual(is_placeholder(':ayy'), 'ayy')
         self.assertEqual(is_placeholder('%(lmao)s'), 'lmao')
@@ -93,7 +93,7 @@ class EscapeTests(TestCase):
 
     def test_prepare(self):
         """
-        ensure sql statement preparation works as intended
+        Ensure SQL statement preparation works as intended
         """
         self.assertPrepare(
             'SELECT 1 FROM Foo WHERE Foo=:ayy',
@@ -130,7 +130,7 @@ class EscapeTests(TestCase):
 
     def test_mogrify(self):
         """
-        ensure mogrification works as intended
+        Ensure mogrification works as intended
         """
         self.assertMogrify(
             'SELECT 1 FROM Foo WHERE Foo=:ayy',

@@ -11,7 +11,7 @@ from typing_extensions import Self
 
 from .uri import DatabaseURI
 from .escape import mogrify, prepare
-from .interface import *
+from .interface import Args, IConnection, IDatabase, ITransaction, Record, Stmt
 
 #** Variables **#
 __all__ = [
@@ -36,11 +36,7 @@ BACKENDS = {
 
 def get_backend(uri: DatabaseURI, kwargs: dict) -> IDatabase:
     """
-    generate and retrieve backend w/ the specified uri
-
-    :param uri:    uri used to retrieve relevant backend and pass to idatabase
-    :param kwargs: kwargs to pass to idatabase initialization
-    :return:       generated idatabase instance
+    Generate and retrieve backend with the specified URI
     """
     module_name, attr = BACKENDS.get(uri.scheme) or BACKENDS[uri.dialect]
     try:
@@ -64,7 +60,9 @@ def get_backend(uri: DatabaseURI, kwargs: dict) -> IDatabase:
 #** Classes **#
 
 class Database:
-    """AnySQL Threadsafe Database Implementation"""
+    """
+    AnySQL Thread-safe Database Implementation
+    """
     __slots__ = ('uri', 'backend', 'connected', 'context', 'cache_statements')
 
     context: contextvars.ContextVar
@@ -77,17 +75,27 @@ class Database:
         self.cache_statements = cache_statements
 
     def __enter__(self) -> Self:
-        """auto-connect on start of context"""
+        """
+        Auto-connect on start of context
+        """
         self.connect()
         return self
 
     def __exit__(self, *_):
-        """auto-disconnect at end of context"""
+        """
+        Auto-disconnect at end of context
+        """
         self.disconnect()
+
+    def to_async(self) -> 'AsyncDatabase':
+        """
+        Convert database instance into async compatible version
+        """
+        return AsyncDatabase(self)
 
     def connect(self):
         """
-        connect to database if not already connected
+        Connect to database if not already connected
         """
         if self.connected:
             logger.debug(f'{self.uri.obscure_password} already connected.')
@@ -98,7 +106,7 @@ class Database:
 
     def disconnect(self):
         """
-        disconnect from database if not already disconected
+        Disconnect from database if not already disconnected
         """
         if not self.connected:
             logger.debug(f'{self.uri.obscure_password} already disconnected.')
@@ -108,9 +116,7 @@ class Database:
 
     def connection(self) -> 'Connection':
         """
-        spawn/return connection based on local thread context
-
-        :return: database connection object
+        Spawn/return connection based on local thread context
         """
         try:
             return self.context.get()
@@ -121,22 +127,14 @@ class Database:
 
     def fetch_one(self, query: Stmt, values: Args = None) -> Optional[Record]:
         """
-        fetch a single record matchingt the given sql statement
-
-        :param query:  raw paramd sql statement
-        :param values: values to pass into sql statement
-        :return:       single sql row record (if any)
+        Fetch a single record matching the given SQL statement
         """
         with self.connection() as conn:
             return conn.fetch_one(query, values)
 
     def fetch_all(self, query: Stmt, values: Args = None) -> List[Record]:
         """
-        fetch all the records matching the given sql statement
-
-        :param query:  raw paramd sql statement
-        :param values: values to pass into sql statement
-        :return:       sql rows in a list
+        Fetch all the records matching the given SQL statement
         """
         with self.connection() as conn:
             return conn.fetch_all(query, values)
@@ -144,11 +142,7 @@ class Database:
     def fetch_yield(self,
         query: Stmt, values: Args = None) -> Generator[Record, None, None]:
         """
-        fetch generator of records matching the given sql statement
-
-        :param query:  raw paramd sql statement
-        :param values: values to pass to sql statement
-        :return:       sql rows in generator
+        Fetch generator of records matching the given SQL statement
         """
         with self.connection() as conn:
             for record in conn.fetch_yield(query, values):
@@ -156,36 +150,28 @@ class Database:
 
     def execute(self, query: Stmt, values: Args = None) -> int:
         """
-        execute the sql statement once with the given values
-
-        :param query:  raw paramd sql statement
-        :param values: values to pass into sql statement
+        Execute the SQL statement once with the given values
         """
         with self.connection() as conn:
             return conn.execute(query, values)
 
     def execute_many(self, query: Stmt, values: Sequence[Args]):
         """
-        execute the sql statement with multiple sets of values
-
-        :param query:  raw paramd sql statement
-        :parma values: list of values to pass into the statement
+        Execute the SQL statement with multiple sets of values
         """
         with self.connection() as conn:
             return conn.execute_many(query, values)
 
     def transaction(self, force_rollback: bool = False, **options) -> 'Transaction':
         """
-        generate transaction and return controls w/ the given settings
-
-        :param force_rollback: force-rollback unless explicitly committed
-        :param options:        additional settings to pass to transaction
-        :return:               transaction manager instance
+        Generate transaction and return controls with the given settings
         """
         return Transaction(None, self.connection, force_rollback, **options)
 
 class Connection:
-    """AnySQL Threadsafe Connection Implementation"""
+    """
+    AnySQL Threadsafe Connection Implementation
+    """
     __slots__ = ('backend', 'conn_lock', 'conn_count',
         'tran_lock', 'tran_stack', 'cache_statements')
 
@@ -195,11 +181,12 @@ class Connection:
         self.conn_count = 0
         self.tran_lock  = threading.Lock()
         self.tran_stack: List['Transaction'] = []
-        # self.query_lock = threading.Lock()
         self.cache_statements = cache_statements
 
     def __enter__(self) -> Self:
-        """track number of connections and acquire conn when one"""
+        """
+        Track number of connections and acquire connection when one
+        """
         with self.conn_lock:
             self.conn_count += 1
             if self.conn_count == 1:
@@ -211,7 +198,9 @@ class Connection:
         return self
 
     def __exit__(self, *_):
-        """track number of connections and release conn when zero"""
+        """
+        Track number of connections and release connection when zero
+        """
         with self.conn_lock:
             self.conn_count -= 1
             if self.conn_count == 0:
@@ -219,22 +208,14 @@ class Connection:
 
     def fetch_one(self, query: Stmt, values: Args = None) -> Optional[Record]:
         """
-        fetch a single record matchingt the given sql statement
-
-        :param query:  raw paramd sql statement
-        :param values: values to pass into sql statement
-        :return:       single sql row record (if any)
+        Fetch a single record matching the given SQL statement
         """
         query = mogrify(query, values, self.cache_statements)
         return self.backend.fetch_one(query)
 
     def fetch_all(self, query: Stmt, values: Args = None) -> List[Record]:
         """
-        fetch all the records matching the given sql statement
-
-        :param query:  raw paramd sql statement
-        :param values: values to pass into sql statement
-        :return:       sql rows in a list
+        Fetch all the records matching the given SQL statement
         """
         query = mogrify(query, values, self.cache_statements)
         return self.backend.fetch_all(query)
@@ -242,31 +223,21 @@ class Connection:
     def fetch_yield(self,
         query: Stmt, values: Args = None) -> Generator[Record, None, None]:
         """
-        fetch generator of records matching the given sql statement
-
-        :param query:  raw paramd sql statement
-        :param values: values to pass to sql statement
-        :return:       sql rows in generator
+        Fetch generator of records matching the given SQL statement
         """
         query = mogrify(query, values, self.cache_statements)
         return self.backend.fetch_yield(query)
 
     def execute(self, query: Stmt, values: Args = None):
         """
-        execute the sql statement once with the given values
-
-        :param query:  raw paramd sql statement
-        :param values: values to pass into sql statement
+        Execute the SQL statement once with the given values
         """
         query = mogrify(query, values, self.cache_statements)
         return self.backend.execute(query)
 
     def execute_many(self, query: Stmt, values: Sequence[Args]):
         """
-        execute the sql statement with multiple sets of values
-
-        :param query:  raw paramd sql statement
-        :parma values: list of values to pass into the statement
+        Execute the sql statement with multiple sets of values
         """
         query = prepare(query)
         for vset in values:
@@ -275,23 +246,21 @@ class Connection:
 
     def transaction(self, force_rollback: bool = False, **options) -> 'Transaction':
         """
-        generate transaction and return controls w/ the given settings
-
-        :param force_rollback: force-rollback unless explicitly committed
-        :param options:        additional settings to pass to transaction
-        :return:               transaction manager instance
+        Generate transaction and return controls with the given settings
         """
         return Transaction(self, None, force_rollback, **options)
 
     @property
     def raw_connection(self):
         """
-        retrieve and return raw-connection underneath thread-safe controls
+        Retrieve and return raw-connection underneath thread-safe controls
         """
         return self.backend.raw_connection
 
 class Transaction:
-    """AnySQL Threadsafe Transaction Implementation"""
+    """
+    AnySQL Thread-safe Transaction Implementation
+    """
     __slots__ = ('connection', 'conn_callback',
         'force_rollback', 'options', 'transaction')
 
@@ -309,12 +278,16 @@ class Transaction:
         self.transaction: Optional[ITransaction] = None
 
     def __enter__(self) -> Self:
-        """start the transaction and return self"""
+        """
+        Start the transaction and return self
+        """
         self.start()
         return self
 
     def __exit__(self, eclass, *_):
-        """rollback transaction on exception or forced-rollback, else commit"""
+        """
+        Roll-back transaction on exception or forced-rollback, else commit
+        """
         func = self.rollback if eclass or self.force_rollback else self.commit
         if self.transaction:
             func()
@@ -331,7 +304,7 @@ class Transaction:
 
     def start(self):
         """
-        start transaction and update internal trackers
+        Start transaction and update internal trackers
         """
         self.connection  = self.connection or self.conn_callback() #type: ignore
         self.transaction = self.connection.backend.transaction()
@@ -344,7 +317,7 @@ class Transaction:
 
     def commit(self):
         """
-        commit current transaction and update internal trackers
+        Commit current transaction and update internal trackers
         """
         if not self.transaction or not self.connection:
             raise RuntimeError('Transaction closed')
@@ -357,7 +330,7 @@ class Transaction:
 
     def rollback(self):
         """
-        rollback current transaction and update internal trackers
+        Roll-back current transaction and update internal trackers
         """
         if not self.transaction or not self.connection:
             raise RuntimeError('Transaction closed')
@@ -367,3 +340,6 @@ class Transaction:
             self.transaction.rollback()
             self.connection.__exit__()
             self.transaction = None
+
+#** Imports **#
+from .async_core import AsyncDatabase

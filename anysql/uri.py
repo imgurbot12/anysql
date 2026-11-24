@@ -15,7 +15,9 @@ class Empty(str):
         return True
 
 class DatabaseURI:
-    """Database URI Parser"""
+    """
+    Database URI Parser
+    """
 
     def __init__(self, uri: str):
         self._raw = uri

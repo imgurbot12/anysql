@@ -24,10 +24,10 @@ __all__ = [
     'IDatabase'
 ]
 
-#: typehint for valid arguments type
+#: type hint for valid arguments type
 Args = Union[Mapping[str, Any], Sequence, None]
 
-#: typehint for all valid mogrify query types
+#: type hint for all valid mogrify query types
 Stmt = Union[str, 'Prepared', 'Query']
 
 Record = Sequence
@@ -35,21 +35,29 @@ Record = Sequence
 #** Classes **#
 
 class ProgrammingError(Exception):
-    """Exception to Raise on Invalid SQL-Query"""
+    """
+    Exception to Raise on Invalid SQL-Query
+    """
     pass
 
 class ArgMode(enum.Enum):
-    """Enum to Denote the Type of Argument Implementation"""
+    """
+    Enum to Denote the Type of Argument Implementation
+    """
     NONE   = 0
     ARGS   = 1
     KWARGS = 2
 
 class Prepared(str):
-    """Custom StringType to Denote Prepared/Parsed SQL Expression"""
+    """
+    Custom String Type to Denote Prepared/Parsed SQL Expression
+    """
     mode: ArgMode = ArgMode.NONE
 
 class Query(Prepared):
-    """Custom StringType to Denote Complete QueryString w/o Placeholders"""
+    """
+    Custom String Type to Denote Complete Query String without Placeholders
+    """
     pass
 
 class ITransaction(Protocol):
@@ -62,7 +70,7 @@ class ITransaction(Protocol):
 
     def start(self, is_root: bool, **options):
         """
-        internal handler for supporting transaction-start
+        Internal handler for supporting transaction-start
         """
         self.is_root = is_root
         if self.is_root:
@@ -73,7 +81,7 @@ class ITransaction(Protocol):
 
     def commit(self):
         """
-        commit changes made in transaction
+        Commit changes made in transaction
         """
         if self.is_root:
             self._execute('COMMIT')
@@ -82,7 +90,7 @@ class ITransaction(Protocol):
 
     def rollback(self):
         """
-        rollback any changes made during the transaction
+        Roll-back any changes made during the transaction
         """
         if self.is_root:
             self._execute('ROLLBACK')

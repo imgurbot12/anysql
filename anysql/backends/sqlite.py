@@ -21,7 +21,7 @@ R = TypeVar('R')
 #: backend logging instance
 logger = logging.getLogger('anysql.sqlite')
 
-#: funciton in charge of generating a connection
+#: function in charge of generating a connection
 Connector = Callable[[], sqlite3.Connection]
 
 #: common exception raised on connection error
@@ -30,7 +30,9 @@ ConnectionClosed = ConnectionError('Connection closed')
 #** Classes **#
 
 class Cursor:
-    """Sqlite Thread Supported Cursor Instance"""
+    """
+    SQLite Thread Supported Cursor Instance
+    """
     __slots__ = ('db', 'cur')
 
     def __init__(self, db: 'Database', cur: sqlite3.Cursor):
@@ -44,7 +46,9 @@ class Cursor:
         self.close()
 
     def _execute(self, func: Callable, *args, **kwargs):
-        """execute function using database thread to run"""
+        """
+        Execute function using database thread to run
+        """
         return self.db._execute(func, *args, **kwargs)
 
     @property
@@ -53,26 +57,26 @@ class Cursor:
 
     def execute(self, query: str) -> Self:
         """
-        execute the given query and return the cursor result
+        Execute the given query and return the cursor result
         """
         self._execute(self.cur.execute, query)
         return self
 
     def fetchone(self):
         """
-        retrieve single result from executed query
+        Retrieve single result from executed query
         """
         return self._execute(self.cur.fetchone)
 
     def fetchall(self):
         """
-        retrieve all results from the executed query
+        Retrieve all results from the executed query
         """
         return self._execute(self.cur.fetchall)
 
     def fetchyield(self, query: Query) -> Generator[Record, None, None]:
         """
-        retrieve generator of results from executed query
+        Retrieve generator of results from executed query
         """
         cursor = self._execute(self.cur.execute, query)
         while True:
@@ -88,7 +92,9 @@ class Cursor:
         return self._execute(self.cur.close)
 
 class Database(threading.Thread):
-    """Sqlite Thread Supported Database Connection Instance"""
+    """
+    SQLite Thread Supported Database Connection Instance
+    """
     __slots__ = ('daemon', 'queue', 'boundry', 'connector', 'connection')
 
     queue:      queue.Queue
@@ -103,7 +109,9 @@ class Database(threading.Thread):
         self.connection = None
 
     def run(self):
-        """main function used for calling sqlite actions"""
+        """
+        Main function used for calling SQLite actions
+        """
         while not self.boundry.n_waiting:
             try:
                 future, function = self.queue.get(timeout=0.1)
@@ -119,7 +127,7 @@ class Database(threading.Thread):
     def _execute(self,
         func: Callable[P, R], *args: P.args, **kwargs: P.kwargs) -> R:
         """
-        internal function to pass func to run into thread and get result
+        Internal function to pass function to run into thread and get result
         """
         if not self.connection:
             raise ConnectionClosed
@@ -138,7 +146,7 @@ class Database(threading.Thread):
 
     def connect(self):
         """
-        connect to sqlite w/ the specified connector
+        Connect to SQLite with the specified connector
         """
         if not self.is_alive():
             self.start()
@@ -150,7 +158,7 @@ class Database(threading.Thread):
 
     def disconnect(self):
         """
-        disconnect from sqlite if connected
+        Disconnect from SQLite if connected
         """
         if self.connection is None:
             return
@@ -161,7 +169,7 @@ class Database(threading.Thread):
 
     def commit(self):
         """
-        commit queued changes to db
+        Commit queued changes to db
         """
         if self.connection is None:
            raise ConnectionClosed
@@ -169,7 +177,7 @@ class Database(threading.Thread):
 
     def rollback(self):
         """
-        revert queued changes from db
+        Revert queued changes from db
         """
         if self.connection is None:
            raise ConnectionClosed
@@ -177,7 +185,7 @@ class Database(threading.Thread):
 
     def cursor(self) -> Cursor:
         """
-        generate a sqlite cursor object for making queries
+        Generate SQLite cursor object for making queries
         """
         if self.connection is None:
            raise ConnectionClosed
@@ -186,7 +194,7 @@ class Database(threading.Thread):
 
     def execute(self, query: str, close: bool = False) -> Cursor:
         """
-        execute the given query on the db and return a cursor
+        Execute the given query on the db and return a cursor
         """
         if self.connection is None:
            raise ConnectionClosed
@@ -197,7 +205,9 @@ class Database(threading.Thread):
         return cursor
 
 class SqliteTransaction(ITransaction):
-    """Internal SQLite Backend Transaction Interface"""
+    """
+    Internal SQLite Backend Transaction Interface
+    """
     __slots__ = ('db', 'is_root', 'savepoint')
 
     def __init__(self, db: Database):
@@ -210,7 +220,9 @@ class SqliteTransaction(ITransaction):
         self.db.execute(query, close=True)
 
 class SqliteConnection(IConnection):
-    """Internal Sqlite Connection Interface"""
+    """
+    Internal SQLite Connection Interface
+    """
     __slots__ = ('db', 'connected')
 
     def __init__(self, db: Database):
@@ -219,37 +231,33 @@ class SqliteConnection(IConnection):
 
     def acquire(self):
         """
-        acquire sqlite connection
+        Acquire SQLite connection
         """
-        if self.connected:
-            raise ConnectionError('Connection already acquired')
         self.connected = True
 
     def release(self):
         """
-        release sqlite connection
+        Release SQLite connection
         """
-        if not self.connected:
-            raise ConnectionError('Connection not acquired')
         self.connected = False
 
     def fetch_one(self, query: Query) -> Optional[Record]:
         """
-        fetch a single record using the specified query
+        Fetch a single record using the specified query
         """
         cursor = self.db.execute(query)
         return cursor.fetchone()
 
     def fetch_all(self, query: Query) -> List[Record]:
         """
-        fetch a list of records using the specified query
+        Fetch a list of records using the specified query
         """
         cursor = self.db.execute(query)
         return cursor.fetchall()
 
     def fetch_yield(self, query: Query) -> Generator[Record, None, None]:
         """
-        fetch a generator of records using the specified query
+        Fetch a generator of records using the specified query
         """
         cursor = self.db.cursor()
         return cursor.fetchyield(query)
@@ -263,19 +271,21 @@ class SqliteConnection(IConnection):
 
     def transaction(self) -> ITransaction:
         """
-        spawn transaction handler for sqlite
+        spawn transaction handler for SQLite
         """
         return SqliteTransaction(self.db)
 
     @property
     def raw_connection(self):
         """
-        retreive underlying sqlite database object
+        Retrieve underlying SQLite database object
         """
         return self.db
 
 class SqliteDatabase(IDatabase):
-    """Internal Sqlite Database Interface"""
+    """
+    Internal SQLite Database Interface
+    """
     __slots__ = ('uri', 'db', 'conn')
 
     def __init__(self, uri: DatabaseURI, **kwargs: Any):
@@ -287,20 +297,20 @@ class SqliteDatabase(IDatabase):
 
     def connect(self):
         """
-        connect to sqlite database
+        Connect to SQLite database
         """
         logger.debug(f'connecting to {self.uri.obscure_password}')
         return self.db.connect()
 
     def disconnect(self):
         """
-        disconnect from sqlite database
+        Disconnect from SQLite database
         """
         logger.debug(f'disconecting from {self.uri.obscure_password}')
         return self.db.disconnect()
 
     def connection(self) -> IConnection:
         """
-        return connection for sqlite database
+        Return connection for SQLite database
         """
         return self.conn

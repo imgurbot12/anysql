@@ -12,7 +12,7 @@ from .interface import *
 #** Variables **#
 __all__ = ['mogrify', 'prepare', 'escape_arg']
 
-#: typehint for valid encoders dictionary
+#: type hint for valid encoders dictionary
 Encoders    = Dict[Type, Callable[[Any, 'Encoders'], str]]
 OptEncoders = Optional[Encoders]
 
@@ -23,7 +23,7 @@ PREPARED_CACHE: Dict[str, Prepared] = {}
 
 def mogrify(query: Stmt, args: Args = None, cache: bool = True) -> Query:
     """
-    escape query arguments and generate finalized query-string
+    Escape query arguments and generate finalized query-string
 
     :param query: sql query-string
     :param args:  arguments to pass to the query-string
@@ -54,7 +54,9 @@ def mogrify(query: Stmt, args: Args = None, cache: bool = True) -> Query:
     return Query(query)
 
 def is_placeholder(chars: str) -> Optional[str]:
-    """check if placeholder and return name if true"""
+    """
+    Check if placeholder and return name if true
+    """
     if not chars:
         return None
     if chars[0] == ':' and chars[-1] != ':':
@@ -72,7 +74,7 @@ def is_placeholder(chars: str) -> Optional[str]:
 
 def prepare(query: Union[str, Prepared], cache: bool = False) -> Prepared:
     """
-    translate placeholders into a single standard format
+    Translate placeholders into a single standard format
 
     :param query: sql query to convert placeholders
     :param cache: cache prepared statements if true
@@ -148,7 +150,7 @@ def prepare(query: Union[str, Prepared], cache: bool = False) -> Prepared:
 
 def escape_arg(arg: Any, mapping: OptEncoders = None) -> str:
     """
-    escape the given sql argument using the specified mapping
+    Escape the given SQL argument using the specified mapping
 
     :param arg:     arbitrary argument value to escape
     :param mapping: mapping used to retrieve escape-function
